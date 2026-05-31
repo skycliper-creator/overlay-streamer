@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Twitch Overlay Generator & OBS Builder - AI Edition</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Montserrat:wght@400;600;800&family=Teko:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html2canvas for preview export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-glow: #ec4899;
+            --secondary-glow: #06b6d4;
+            --overlay-bg: rgba(15, 23, 42, 0.4);
+            --border-width: 3px;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #080a10;
+            color: #f3f4f6;
+            background-image: radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent 40%),
+                              radial-gradient(circle at bottom left, rgba(236, 72, 153, 0.1), transparent 40%);
+        }
+
+        .font-gaming {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .font-display {
+            font-family: 'Teko', sans-serif;
+        }
+
+        /* Animated glowing border effects */
+        .neon-border {
+            border: var(--border-width) solid var(--primary-glow);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.8),
+                        inset 0 0 8px rgba(0, 0, 0, 0.8),
+                        0 0 15px var(--primary-glow),
+                        inset 0 0 10px var(--primary-glow);
+            animation: border-pulse 4s infinite alternate;
+        }
+
+        .neon-text {
+            color: #ffffff;
+            text-shadow: 0 0 5px #fff,
+                         0 0 10px var(--primary-glow),
+                         0 0 20px var(--primary-glow);
+        }
+
+        .neon-text-secondary {
+            color: #ffffff;
+            text-shadow: 0 0 5px #fff,
+                         0 0 10px var(--secondary-glow),
+                         0 0 20px var(--secondary-glow);
+        }
+
+        @keyframes border-pulse {
+            0% {
+                border-color: var(--primary-glow);
+                box-shadow: 0 0 10px rgba(0,0,0,0.8), 0 0 15px var(--primary-glow);
+            }
+            50% {
+                border-color: var(--secondary-glow);
+                box-shadow: 0 0 15px rgba(0,0,0,0.8), 0 0 25px var(--secondary-glow);
+            }
+            100% {
+                border-color: var(--primary-glow);
+                box-shadow: 0 0 10px rgba(0,0,0,0.8), 0 0 15px var(--primary-glow);
+            }
+        }
+
+        /* Retro Wave Sunset Grid background animation */
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            perspective: 500px;
+            overflow: hidden;
+        }
+
+        .grid-bg::after {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background-image: linear-gradient(0deg, transparent 24%, rgba(236, 72, 153, 0.05) 25%, rgba(236, 72, 153, 0.1) 26%, transparent 27%, transparent 74%, rgba(6, 182, 212, 0.05) 75%, rgba(6, 182, 212, 0.1) 76%, transparent 77%);
+            background-size: 50px 50px;
+            transform: rotateX(60deg);
+            animation: grid-slide 20s linear infinite;
+        }
+
+        @keyframes grid-slide {
+            0% { transform: rotateX(60deg) translateY(0); }
+            100% { transform: rotateX(60deg) translateY(50px); }
+        }
+
+        /* Custom Scrollbar for sidebars */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.3);
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: var(--primary-glow);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Custom Toast Notification System -->
+    <div id="toast" class="fixed top-5 right-5 z-50 transform translate-y-[-100px] opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-slate-900 border-l-4 border-pink-500 text-white px-5 py-3 rounded-lg shadow-2xl flex items-center gap-3">
+            <span id="toast-icon" class="text-pink-500 text-lg"><i class="fa-solid fa-bell-ring animate-bounce"></i></span>
+            <div>
+                <p id="toast-title" class="font-gaming font-bold text-xs uppercase tracking-wider text-pink-400">System Notification</p>
+                <p id="toast-msg" class="text-xs text-gray-300">Action performed successfully.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-slate-950/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center gap-4 z-10">
+        <div class="flex items-center gap-3">
+            <div class="bg-gradient-to-br from-pink-500 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-pink-500/20">
+                <i class="fa-solid fa-wand-magic-sparkles text-2xl text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-black tracking-wider text-white font-gaming">TWITCH <span class="text-pink-500 font-black">AI-OVERLAY</span> STUDIO</h1>
+                <p class="text-xs text-gray-400">Desain Stream Overlay buatan yuda ganteng</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+            <button onclick="resetToDefaults()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-gray-300 rounded-lg text-xs font-semibold font-gaming transition flex items-center gap-2 border border-slate-700">
+                <i class="fa-solid fa-arrow-rotate-left"></i> Reset
+            </button>
+            <button onclick="openOBSModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold font-gaming transition flex items-center gap-2 shadow-lg shadow-indigo-600/30">
+                <i class="fa-solid fa-code"></i> Dapatkan Kode OBS
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        
+        <!-- Controls Sidebar (Left) -->
+        <section class="lg:col-span-4 bg-slate-900/60 backdrop-blur border border-slate-800 rounded-2xl p-5 flex flex-col gap-6 max-h-[calc(100vh-160px)] overflow-y-auto custom-scroll">
+            
+            <!-- Navigation Tabs for AI and Manual controls -->
+            <div class="flex border-b border-slate-800 p-0.5 bg-slate-950 rounded-xl">
+                <button id="tab-btn-manual" onclick="switchControlTab('manual')" class="flex-1 py-2 text-center text-xs font-gaming font-bold rounded-lg bg-pink-500 text-white transition">
+                    🛠️ Manual
+                </button>
+                <button id="tab-btn-ai" onclick="switchControlTab('ai')" class="flex-1 py-2 text-center text-xs font-gaming font-bold rounded-lg text-gray-400 hover:text-white transition">
+                    ⚡ AI Studio
+                </button>
+            </div>
+
+            <!-- TAB 1: MANUAL CONTROL PANEL (Originally designed content) -->
+            <div id="panel-manual" class="flex flex-col gap-6">
+                <!-- Quick Preset Themes -->
+                <div>
+                    <h3 class="text-sm font-bold font-gaming text-gray-300 mb-3 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-palette text-pink-500"></i> Tema Preset Cepat
+                    </h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="applyTheme('cyberpunk')" class="p-2.5 rounded-lg bg-slate-850 hover:bg-slate-800 border-2 border-pink-500/50 hover:border-pink-500 transition text-left text-xs font-semibold flex flex-col justify-between h-16">
+                            <span class="text-pink-400">Neon Cyberpunk</span>
+                            <div class="flex gap-1.5"><span class="w-3 h-3 rounded-full bg-pink-500"></span><span class="w-3 h-3 rounded-full bg-cyan-400"></span></div>
+                        </button>
+                        <button onclick="applyTheme('retrowave')" class="p-2.5 rounded-lg bg-slate-850 hover:bg-slate-800 border-2 border-violet-500/30 hover:border-violet-500 transition text-left text-xs font-semibold flex flex-col justify-between h-16">
+                            <span class="text-violet-400">Retro Sunset</span>
+                            <div class="flex gap-1.5"><span class="w-3 h-3 rounded-full bg-violet-600"></span><span class="w-3 h-3 rounded-full bg-amber-400"></span></div>
+                        </button>
+                        <button onclick="applyTheme('esports')" class="p-2.5 rounded-lg bg-slate-850 hover:bg-slate-800 border-2 border-red-500/30 hover:border-red-500 transition text-left text-xs font-semibold flex flex-col justify-between h-16">
+                            <span class="text-red-400">Crimson Fury</span>
+                            <div class="flex gap-1.5"><span class="w-3 h-3 rounded-full bg-red-600"></span><span class="w-3 h-3 rounded-full bg-slate-600"></span></div>
+                        </button>
+                        <button onclick="applyTheme('toxic')" class="p-2.5 rounded-lg bg-slate-850 hover:bg-slate-800 border-2 border-lime-500/30 hover:border-lime-500 transition text-left text-xs font-semibold flex flex-col justify-between h-16">
+                            <span class="text-lime-400">Toxic Biohazard</span>
+                            <div class="flex gap-1.5"><span class="w-3 h-3 rounded-full bg-lime-500"></span><span class="w-3 h-3 rounded-full bg-slate-900"></span></div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stream Mode Selector -->
+                <div>
+                    <h3 class="text-sm font-bold font-gaming text-gray-300 mb-3 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-tv text-pink-500"></i> Mode Tampilan Layar
+                    </h3>
+                    <div class="flex flex-col gap-2">
+                        <button id="btn-mode-ingame" onclick="switchMode('ingame')" class="mode-btn active p-3 rounded-xl border border-pink-500/20 bg-pink-500/10 text-white font-semibold font-gaming text-xs flex items-center justify-between transition">
+                            <span>🎮 IN-GAME HUD OVERLAY</span>
+                            <i class="fa-solid fa-gamepad text-pink-500"></i>
+                        </button>
+                        <button id="btn-mode-chatting" onclick="switchMode('chatting')" class="mode-btn p-3 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-850 hover:bg-slate-800 text-gray-400 hover:text-white font-semibold font-gaming text-xs flex items-center justify-between transition">
+                            <span>💬 JUST CHATTING SCREEN</span>
+                            <i class="fa-solid fa-comments"></i>
+                        </button>
+                        <button id="btn-mode-starting" onclick="switchMode('starting')" class="mode-btn p-3 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-850 hover:bg-slate-800 text-gray-400 hover:text-white font-semibold font-gaming text-xs flex items-center justify-between transition">
+                            <span>⏳ STARTING SOON SCREEN</span>
+                            <i class="fa-solid fa-hourglass-start"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Color & Border Customizer -->
+                <div class="border-t border-slate-800 pt-4">
+                    <h3 class="text-sm font-bold font-gaming text-gray-300 mb-3 uppercase tracking-wider">🎨 Kustomisasi Warna & Glow</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1.5 font-semibold">Neon Utama</label>
+                            <div class="flex items-center gap-2">
+                                <input type="color" id="input-primary-color" oninput="updateColors()" value="#ec4899" class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent">
+                                <span id="label-primary-color" class="text-xs font-mono text-gray-400">#ec4899</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1.5 font-semibold">Neon Sekunder</label>
+                            <div class="flex items-center gap-2">
+                                <input type="color" id="input-secondary-color" oninput="updateColors()" value="#06b6d4" class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent">
+                                <span id="label-secondary-color" class="text-xs font-mono text-gray-400">#06b6d4</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-xs text-gray-400 mb-1.5 font-semibold flex justify-between">
+                            <span>Ketebalan Frame</span>
+                            <span id="label-border-width">3px</span>
+                        </label>
+                        <input type="range" id="input-border-width" oninput="updateBorderWidth()" min="1" max="8" value="3" class="w-full accent-pink-500">
+                    </div>
+                </div>
+
+                <!-- Frame Webcam Adjustments -->
+                <div class="border-t border-slate-800 pt-4">
+                    <h3 class="text-sm font-bold font-gaming text-gray-300 mb-3 uppercase tracking-wider">📷 Kamera (Webcam Frame)</h3>
+                    <div class="flex flex-col gap-3">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs text-gray-400 font-semibold">Tampilkan Frame Kamera</label>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="toggle-webcam" onchange="toggleWebcam()" checked class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:height-5 after:width-5 after:transition-all peer-checked:bg-pink-500"></div>
+                            </label>
+                        </div>
+                        <div id="webcam-controls" class="flex flex-col gap-2">
+                            <label class="block text-xs text-gray-400 font-semibold">Posisi Kamera (In-Game)</label>
+                            <div class="grid grid-cols-2 gap-1.5">
+                                <button onclick="setWebcamPosition('top-left')" class="p-2 text-center text-xs bg-slate-800 hover:bg-slate-750 rounded-lg border border-slate-700 hover:border-pink-500/40 text-gray-300 transition">Top Left</button>
+                                <button onclick="setWebcamPosition('top-right')" class="p-2 text-center text-xs bg-slate-800 hover:bg-slate-750 rounded-lg border border-slate-700 hover:border-pink-500/40 text-gray-300 transition">Top Right</button>
+                                <button onclick="setWebcamPosition('bottom-left')" class="p-2 text-center text-xs bg-slate-800 hover:bg-slate-750 rounded-lg border border-slate-700 hover:border-pink-500/40 text-gray-300 transition">Bottom Left</button>
+                                <button onclick="setWebcamPosition('bottom-right')" class="p-2 text-center text-xs bg-slate-800 hover:bg-slate-750 rounded-lg border border-slate-700 hover:border-pink-500/40 text-gray-300 transition">Bottom Right</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Widget & Text Labels -->
+                <div class="border-t border-slate-800 pt-4">
+                    <h3 class="text-sm font-bold font-gaming text-gray-300 mb-3 uppercase tracking-wider">📝 Teks Info Overlay</h3>
+                    <div class="flex flex-col gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1 font-semibold">Username / Nickname</label>
+                            <input type="text" id="input-username" oninput="updateOverlayTexts()" value="PRO_GAMER" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-pink-500 transition text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1 font-semibold">Latest Follower</label>
+                            <input type="text" id="input-follower" oninput="updateOverlayTexts()" value="GamerKeren_99" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-pink-500 transition text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1 font-semibold">Latest Donation</label>
+                            <input type="text" id="input-donation" oninput="updateOverlayTexts()" value="Sultan_Live Rp 50.000" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-pink-500 transition text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1 font-semibold">Username Instagram/X</label>
+                            <div class="flex">
+                                <span class="inline-flex items-center px-3 bg-slate-800 border border-r-0 border-slate-700 rounded-l-lg text-xs text-gray-400">@</span>
+                                <input type="text" id="input-social" oninput="updateOverlayTexts()" value="pro_gamer_stream" class="flex-1 bg-slate-800 border border-slate-700 rounded-r-lg px-3 py-2 text-xs focus:outline-none focus:border-pink-500 transition text-white">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: AI CREATIVE ENGINE PANEL (New Feature Integrations!) -->
+            <div id="panel-ai" class="flex flex-col gap-6 hidden">
+                
+                <!-- AI Feature 1: Background Art Generator (Imagen 4) -->
+                <div>
+                    <h3 class="text-sm font-bold font-gaming text-gray-300 mb-2 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-image text-indigo-400 animate-pulse"></i> AI Background Maker
+                    </h3>
+                    <p class="text-[11px] text-gray-400 mb-2">Desain latar belakang streaming impianmu secara kustom dari perintah kata!</p>
+                    <div class="flex flex-col gap-2">
+                        <textarea id="ai-bg-prompt" placeholder="Contoh: cyberpunk gaming setup room with warm neon lights and a giant futuristic holographic screen, synthwave art style, 16:9..." class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 h-20 placeholder:text-gray-500 resize-none"></textarea>
+                        <button onclick="generateAIBackground()" id="btn-generate-bg" class="w-full py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-lg text-xs font-bold font-gaming transition flex items-center justify-center gap-2 shadow-md shadow-indigo-600/20">
+                            <i class="fa-solid fa-compass-drafting"></i> GENERATE BG (IMAGEN AI)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Feature 2: Clickbait Title, command & News Marquee Booster (Gemini 1.5 Flash) -->
+                <div class="border-t border-slate-800 pt-4">
+                    <h3 class="text-sm font-bold font-gaming text-gray-300 mb-2 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-rocket text-pink-400"></i> AI Stream Booster
+                    </h3>
+                    <p class="text-[11px] text-gray-400 mb-2.5">Otomatiskan penulisan judul streaming terpopuler, teks marquee berjalan, dan pesan moderasi interaktif!</p>
+                    
+                    <div class="flex flex-col gap-3">
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1 font-semibold">Game yang Dimainkan</label>
+                            <input type="text" id="ai-input-game" value="Valorant" placeholder="Contoh: GTA V, Mobile Legends, Minecraft" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-pink-500 transition">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-gray-400 mb-1 font-semibold">Nuansa / Vibe Siaran</label>
+                            <select id="ai-input-vibe" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-pink-500 transition">
+                                <option value="sweaty tryhard competitive">🔥 Sweaty & Kompetitif</option>
+                                <option value="funny comedy entertainer">😂 Lucu & Menghibur</option>
+                                <option value="chill relax lofi">☕ Santai & Cozy</option>
+                                <option value="toxic biohazard funny gaming">☢️ Toxic Lucu (Esports)</option>
+                            </select>
+                        </div>
+                        <button onclick="boostStreamWithAI()" id="btn-boost-stream" class="w-full py-2 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white rounded-lg text-xs font-bold font-gaming transition flex items-center justify-center gap-2 shadow-md shadow-pink-500/20">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> REKOMENDASIKAN AI SLOGAN
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Feature 3: Live Co-Host AI Streamer Chatbot Assistant -->
+                <div class="border-t border-slate-800 pt-4">
+                    <h3 class="text-sm font-bold font-gaming text-gray-300 mb-2 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-robot text-teal-400 animate-bounce"></i> Asisten Co-Host AI
+                    </h3>
+                    <p class="text-[11px] text-gray-400 mb-2">Tanya Gemini apa saja (misal: ide gameplay gila, tips menaikkan viewers, sapaan penonton):</p>
+                    
+                    <div class="flex gap-2">
+                        <input type="text" id="ai-assistant-query" placeholder="Saran sapaan keren..." class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500">
+                        <button onclick="askAIAssistant()" id="btn-ask-assistant" class="px-3 bg-teal-600 hover:bg-teal-500 text-white rounded-lg transition text-xs font-bold font-gaming">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div id="ai-assistant-response" class="mt-2.5 p-2.5 bg-slate-950/80 border border-slate-800 rounded-lg text-[10px] text-teal-300 leading-relaxed hidden">
+                        <!-- Populated by Gemini -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Export Options (Always visible at the bottom) -->
+            <div class="border-t border-slate-800 pt-4 mt-auto">
+                <button onclick="downloadOverlay()" class="w-full py-3 bg-gradient-to-r from-pink-500 to-indigo-600 hover:from-pink-600 hover:to-indigo-700 text-white rounded-xl font-bold font-gaming text-xs tracking-wider transition shadow-lg shadow-pink-500/20 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-download"></i> EXPORT LAYOUT (PNG)
+                </button>
+                <p class="text-[10px] text-gray-500 text-center mt-2 font-semibold">Ekspor pratinjau overlay resolusi 16:9 HD standar (1280x720)</p>
+            </div>
+
+        </section>
+
+        <!-- Live Preview Area (Right) -->
+        <section class="lg:col-span-8 flex flex-col gap-4">
+            
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold font-gaming text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping"></span> Live Canvas Preview (16:9)
+                </span>
+                <span class="text-[11px] bg-slate-800 px-3 py-1 rounded-full text-gray-400 font-semibold border border-slate-700">Resolusi Output: 1280 x 720 px</span>
+            </div>
+
+            <!-- The Real Interactive Overlay Frame (Simulating OBS Source) -->
+            <div class="relative w-full aspect-video rounded-2xl border border-slate-800 overflow-hidden bg-slate-950 shadow-2xl" id="stream-preview-container">
+                
+                <!-- Dynamic grid layer for Retro/Cyber Theme -->
+                <div id="overlay-grid" class="absolute inset-0 grid-bg opacity-40 pointer-events-none"></div>
+
+                <!-- Simulated Game Background (or generated AI Art backdrop) -->
+                <div id="simulated-gameplay" class="absolute inset-0 z-0 bg-cover bg-center transition-all duration-300" style="background-image: url('https://placehold.co/1280x720/1e293b/0f172a?text=🎮+Simulasi+Gameplay+Game');"></div>
+
+                <!-- NEW: Neon Scrolling News Ticker (Marquee Widget) -->
+                <div id="ticker-bar" class="absolute top-0 left-0 right-0 h-7 bg-slate-950/90 border-b border-slate-800 flex items-center overflow-hidden z-20">
+                    <div class="bg-pink-500 text-[9px] font-gaming font-black px-3.5 py-1 text-white h-full flex items-center uppercase tracking-widest shrink-0">NEWS UPDATE</div>
+                    <marquee id="marquee-text" class="text-[10px] font-semibold text-gray-300 w-full" scrollamount="4">🔥 Selamat datang di Live Stream kami! | Jangan lupa follow dan nyalakan lonceng notifikasi! | Dukung kami via Donation Bar di bawah ini 🔥</marquee>
+                </div>
+
+                <!-- Live Stream Status Tag -->
+                <div class="absolute top-11 left-4 z-20 flex items-center gap-2 bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-lg backdrop-blur">
+                    <span class="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+                    <span class="font-gaming font-black text-[10px] tracking-wider text-white">LIVE</span>
+                    <span class="text-slate-500 font-mono text-[10px]">|</span>
+                    <span class="text-slate-300 font-semibold text-[10px]">02:14:35</span>
+                </div>
+
+                <!-- Webcam Frame (Can be dragged, hidden, or toggled) -->
+                <div id="webcam-frame" class="absolute w-[240px] aspect-video z-20 neon-border rounded transition-all duration-300 ease-out flex items-center justify-center bg-slate-950/90 top-11 right-4">
+                    <!-- Camera lens simulator -->
+                    <div class="absolute top-2 w-3 h-3 bg-red-600 rounded-full border-2 border-slate-900 z-10 animate-pulse"></div>
+                    <!-- Live feed placeholder graphic -->
+                    <div class="text-center">
+                        <i class="fa-solid fa-video text-slate-700 text-3xl mb-1"></i>
+                        <p class="text-[9px] text-slate-500 uppercase tracking-widest font-gaming">SIMULASI KAMERA</p>
+                    </div>
+                    <!-- Small Camera Tag -->
+                    <div class="absolute -bottom-2 right-2 bg-slate-950 px-2 py-0.5 rounded text-[8px] font-gaming text-gray-400 border border-slate-800 font-bold uppercase tracking-widest">
+                        CAM 01
+                    </div>
+                </div>
+
+                <!-- Live Simulated Stream Chat (Very Interactive!) -->
+                <div id="stream-chat" class="absolute left-4 bottom-4 w-[280px] h-[170px] z-20 bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex flex-col justify-end overflow-hidden backdrop-blur">
+                    <div class="absolute top-0 left-0 right-0 bg-slate-900/60 px-3 py-1.5 text-[9px] font-gaming text-pink-400 font-bold tracking-widest uppercase border-b border-slate-800 flex justify-between items-center">
+                        <span>💬 STREAM CHAT</span>
+                        <i class="fa-solid fa-ellipsis-v"></i>
+                    </div>
+                    <div id="chat-messages" class="flex flex-col gap-2 overflow-y-auto max-h-[130px] text-[10px] pb-1 pr-1">
+                        <!-- Messages populated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- Bottom Status Event Overlay Bar (Labels Widget) -->
+                <div id="labels-overlay-bar" class="absolute bottom-4 left-[304px] right-4 z-20 flex items-center justify-between bg-slate-950/90 border border-slate-800 rounded-xl px-4 py-2.5 backdrop-blur gap-4">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-brands fa-twitch text-pink-500 text-sm"></i>
+                        <span id="display-username" class="font-gaming font-black text-xs text-white uppercase tracking-wider">PRO_GAMER</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-6 text-[10px] font-semibold">
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-500 uppercase text-[9px] font-gaming">LATEST FOLLOWER:</span>
+                            <span id="display-follower" class="text-pink-400 font-gaming">GamerKeren_99</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-500 uppercase text-[9px] font-gaming">DONATION:</span>
+                            <span id="display-donation" class="text-cyan-400 font-gaming">Sultan_Live Rp 50.000</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-1 text-slate-400">
+                        <i class="fa-brands fa-instagram text-[10px] text-pink-500"></i>
+                        <span id="display-social" class="text-[9px] font-mono">@pro_gamer_stream</span>
+                    </div>
+                </div>
+
+                <!-- Just Chatting & Starting Soon Screens Overlay Template (Visible on mode switch) -->
+                <div id="full-screen-overlay-mode" class="absolute inset-0 z-30 flex flex-col items-center justify-center p-8 bg-slate-950/95 transition-all duration-300 hidden">
+                    
+                    <!-- Pulsing center badge -->
+                    <div class="text-center relative max-w-lg">
+                        <div class="inline-flex items-center justify-center p-4 bg-gradient-to-br from-pink-500/10 to-transparent rounded-full border border-pink-500/20 mb-4 shadow-2xl">
+                            <i id="mode-badge-icon" class="fa-solid fa-hourglass-start text-4xl neon-text"></i>
+                        </div>
+                        <h2 id="mode-heading" class="text-4xl md:text-5xl font-black font-gaming uppercase tracking-widest mb-2 neon-text text-white">STREAM STARTING SOON</h2>
+                        <p id="mode-subheading" class="text-xs text-slate-400 uppercase tracking-widest mb-6">Siapkan cemilan kamu, stream akan segera dimulai!</p>
+                        
+                        <!-- Real-time Countdown timer element -->
+                        <div id="countdown-timer" class="font-gaming text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-indigo-400 tracking-wider mb-6">
+                            05:00
+                        </div>
+
+                        <!-- Intermission Details -->
+                        <div id="intermission-widgets" class="hidden grid grid-cols-2 gap-4 max-w-sm mx-auto">
+                            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                                <span class="text-[9px] font-gaming text-slate-500 uppercase block mb-1">Total Views</span>
+                                <span class="text-xl font-gaming font-bold text-white">42,840</span>
+                            </div>
+                            <div class="bg-slate-900 border border-slate-800 rounded-xl p-3">
+                                <span class="text-[9px] font-gaming text-slate-500 uppercase block mb-1">Subscriber Goal</span>
+                                <span class="text-xl font-gaming font-bold text-pink-400">920 / 1,000</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Social Handle Footer inside screen overlay -->
+                    <div class="absolute bottom-6 flex items-center gap-6">
+                        <div class="flex items-center gap-1 text-slate-300 text-xs font-semibold">
+                            <i class="fa-brands fa-twitch text-pink-500 text-sm"></i>
+                            <span id="mode-display-twitch">PRO_GAMER</span>
+                        </div>
+                        <div class="flex items-center gap-1 text-slate-300 text-xs font-semibold">
+                            <i class="fa-brands fa-instagram text-cyan-400 text-sm"></i>
+                            <span id="mode-display-social">@pro_gamer_stream</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Helpful Tips Card -->
+            <div class="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 flex gap-3.5 items-start">
+                <span class="text-pink-500 text-lg mt-0.5"><i class="fa-solid fa-lightbulb"></i></span>
+                <div>
+                    <h4 class="text-xs font-bold font-gaming text-white uppercase tracking-wider mb-1">Pro OBS Stream Tip:</h4>
+                    <p class="text-[11px] text-gray-400 leading-relaxed">Untuk hasil optimal, kamu bisa menggunakan fitur **Dapatkan Kode OBS** di atas untuk langsung menyalin styling CSS murni kami langsung ke OBS Browser Source agar overlay kamu tidak kehilangan kualitas kompresi gambar!</p>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- OBS Browser Source Code Modal -->
+    <div id="obs-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden transition-all">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col">
+            <!-- Modal Header -->
+            <div class="bg-slate-950 px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-code text-pink-500 text-lg"></i>
+                    <h3 class="font-gaming font-black text-sm tracking-wider text-white">KODE BROWSER SOURCE OBS</h3>
+                </div>
+                <button onclick="closeOBSModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <!-- Modal Body -->
+            <div class="p-6 flex flex-col gap-4 overflow-y-auto max-h-[450px] custom-scroll">
+                <p class="text-xs text-slate-400 leading-relaxed">Salin kode CSS kustom di bawah ini dan tempelkan ke kolom **Custom CSS** saat menambahkan Browser Source baru di aplikasi OBS Studio kamu untuk memproyeksikan glow neon asli:</p>
+                
+                <div class="relative">
+                    <pre id="obs-code-block" class="bg-slate-950 text-pink-400 p-4 rounded-xl text-[11px] font-mono overflow-x-auto border border-slate-800 max-h-[220px]">
+/* Salin kode CSS berikut ke Custom CSS OBS: */
+body {
+    background-color: transparent !important;
+    margin: 0px;
+    padding: 0px;
+    overflow: hidden;
+}
+.neon-border {
+    border: 3px solid #ec4899;
+    box-shadow: 0 0 10px rgba(0,0,0,0.8), 0 0 15px #ec4899;
+    animation: border-pulse 4s infinite alternate;
+}
+@keyframes border-pulse {
+    0% { border-color: #ec4899; box-shadow: 0 0 15px #ec4899; }
+    100% { border-color: #06b6d4; box-shadow: 0 0 25px #06b6d4; }
+}</pre>
+                    <button onclick="copyToClipboard()" class="absolute top-2.5 right-2.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold transition flex items-center gap-1.5 shadow-md">
+                        <i class="fa-solid fa-copy"></i> Copy Code
+                    </button>
+                </div>
+
+                <div class="bg-indigo-950/40 border border-indigo-800/60 rounded-xl p-3.5 text-xs text-indigo-300 leading-relaxed">
+                    <p class="font-bold mb-1">💡 Langkah Memasukkan ke OBS Studio:</p>
+                    <ol class="list-decimal pl-4 flex flex-col gap-1 text-[11px] text-slate-400">
+                        <li>Buka OBS Studio, tambahkan Source baru bertipe <b class="text-indigo-200">Browser</b>.</li>
+                        <li>Isi lebar (<b class="text-indigo-200">Width</b>): <span class="font-mono">1280</span> dan tinggi (<b class="text-indigo-200">Height</b>): <span class="font-mono">720</span>.</li>
+                        <li>Tempelkan tautan halaman web ini ke kolom URL (atau gunakan file lokal).</li>
+                        <li>Tempelkan kode Custom CSS di atas ke kolom input yang paling bawah. Selesai!</li>
+                    </ol>
+                </div>
+            </div>
+            <!-- Modal Footer -->
+            <div class="bg-slate-950 px-6 py-4 border-t border-slate-800 flex justify-end">
+                <button onclick="closeOBSModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition font-gaming">Selesai</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 border-t border-slate-900 py-3.5 px-6 text-center text-[11px] text-gray-500">
+        <p>© 2026 Gaming Twitch Overlay Studio AI. Built with ❤️ and precision.</p>
+    </footer>
+
+    <script>
+        // Preset theme maps
+        const themes = {
+            cyberpunk: {
+                primary: '#ec4899', // Pink
+                secondary: '#06b6d4', // Cyan
+                borderWidth: '3'
+            },
+            retrowave: {
+                primary: '#8b5cf6', // Violet
+                secondary: '#f59e0b', // Amber
+                borderWidth: '4'
+            },
+            esports: {
+                primary: '#ef4444', // Red
+                secondary: '#64748b', // Slate
+                borderWidth: '4'
+            },
+            toxic: {
+                primary: '#84cc16', // Lime Green
+                secondary: '#0f172a', // Deep slate
+                borderWidth: '5'
+            }
+        };
+
+        // Active state settings
+        let currentMode = 'ingame';
+        let countdownInterval;
+
+        // Initialize elements
+        window.onload = function() {
+            // Apply default Cyberpunk theme initially
+            applyTheme('cyberpunk');
+            // Trigger initial text sync
+            updateOverlayTexts();
+            // Start the simulated chat engine
+            startChatSimulation();
+            // Start the starting screen countdown
+            startCountdown();
+        };
+
+        // Notification handler
+        function showToast(title, message, isError = false) {
+            const toast = document.getElementById('toast');
+            const tTitle = document.getElementById('toast-title');
+            const tMsg = document.getElementById('toast-msg');
+            const tIcon = document.getElementById('toast-icon');
+
+            tTitle.textContent = title;
+            tMsg.textContent = message;
+            
+            if (isError) {
+                toast.firstElementChild.classList.remove('border-pink-500');
+                toast.firstElementChild.classList.add('border-red-600');
+                tIcon.innerHTML = `<i class="fa-solid fa-circle-exclamation text-red-600 animate-bounce"></i>`;
+            } else {
+                toast.firstElementChild.classList.remove('border-red-600');
+                toast.firstElementChild.classList.add('border-pink-500');
+                tIcon.innerHTML = `<i class="fa-solid fa-bell-ring text-pink-500 animate-bounce"></i>`;
+            }
+
+            toast.classList.remove('translate-y-[-100px]', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-[-100px]', 'opacity-0');
+            }, 3000);
+        }
+
+        // Tab switcher: Manual vs AI Studio
+        function switchControlTab(tabName) {
+            const btnManual = document.getElementById('tab-btn-manual');
+            const btnAi = document.getElementById('tab-btn-ai');
+            const panelManual = document.getElementById('panel-manual');
+            const panelAi = document.getElementById('panel-ai');
+
+            if (tabName === 'manual') {
+                btnManual.className = "flex-1 py-2 text-center text-xs font-gaming font-bold rounded-lg bg-pink-500 text-white transition";
+                btnAi.className = "flex-1 py-2 text-center text-xs font-gaming font-bold rounded-lg text-gray-400 hover:text-white transition";
+                panelManual.classList.remove('hidden');
+                panelAi.classList.add('hidden');
+            } else {
+                btnAi.className = "flex-1 py-2 text-center text-xs font-gaming font-bold rounded-lg bg-indigo-600 text-white transition";
+                btnManual.className = "flex-1 py-2 text-center text-xs font-gaming font-bold rounded-lg text-gray-400 hover:text-white transition";
+                panelManual.classList.add('hidden');
+                panelAi.classList.remove('hidden');
+            }
+        }
+
+        // Apply theme color presets
+        function applyTheme(themeKey) {
+            const theme = themes[themeKey];
+            if (!theme) return;
+
+            document.getElementById('input-primary-color').value = theme.primary;
+            document.getElementById('input-secondary-color').value = theme.secondary;
+            document.getElementById('input-border-width').value = theme.borderWidth;
+
+            updateColors();
+            updateBorderWidth();
+
+            showToast("Theme Loaded", `Mengaktifkan tema preset "${themeKey.toUpperCase()}"!`);
+        }
+
+        // Live update custom colors
+        function updateColors() {
+            const primary = document.getElementById('input-primary-color').value;
+            const secondary = document.getElementById('input-secondary-color').value;
+
+            document.getElementById('label-primary-color').textContent = primary.toUpperCase();
+            document.getElementById('label-secondary-color').textContent = secondary.toUpperCase();
+
+            // Apply directly using inline styles to element properties
+            document.documentElement.style.setProperty('--primary-glow', primary);
+            document.documentElement.style.setProperty('--secondary-glow', secondary);
+
+            // Re-render simulated dynamic styles
+            const styleElems = document.querySelectorAll('.neon-text');
+            styleElems.forEach(el => {
+                el.style.textShadow = `0 0 5px #fff, 0 0 10px ${primary}, 0 0 20px ${primary}`;
+            });
+
+            // Update OBS copied code representation dynamically
+            updateOBSCodePreview(primary, secondary, document.getElementById('input-border-width').value);
+        }
+
+        // Live update boundary thickness
+        function updateBorderWidth() {
+            const width = document.getElementById('input-border-width').value;
+            document.getElementById('label-border-width').textContent = `${width}px`;
+            document.documentElement.style.setProperty('--border-width', `${width}px`);
+        }
+
+        // Toggle webcam frame view state
+        function toggleWebcam() {
+            const isChecked = document.getElementById('toggle-webcam').checked;
+            const webcamFrame = document.getElementById('webcam-frame');
+            const controls = document.getElementById('webcam-controls');
+
+            if (isChecked) {
+                webcamFrame.classList.remove('hidden');
+                controls.style.opacity = '1';
+                controls.style.pointerEvents = 'auto';
+            } else {
+                webcamFrame.classList.add('hidden');
+                controls.style.opacity = '0.4';
+                controls.style.pointerEvents = 'none';
+            }
+        }
+
+        // Position webcam frame inside 16:9 box
+        function setWebcamPosition(position) {
+            const webcam = document.getElementById('webcam-frame');
+            
+            // Remove current placements
+            webcam.classList.remove('top-4', 'right-4', 'left-4', 'bottom-[76px]', 'top-11', 'top-14');
+
+            switch(position) {
+                case 'top-left':
+                    webcam.className = "absolute w-[240px] aspect-video z-20 neon-border rounded transition-all duration-300 ease-out flex items-center justify-center bg-slate-950/90 top-11 left-4";
+                    break;
+                case 'top-right':
+                    webcam.className = "absolute w-[240px] aspect-video z-20 neon-border rounded transition-all duration-300 ease-out flex items-center justify-center bg-slate-950/90 top-11 right-4";
+                    break;
+                case 'bottom-left':
+                    webcam.className = "absolute w-[240px] aspect-video z-20 neon-border rounded transition-all duration-300 ease-out flex items-center justify-center bg-slate-950/90 bottom-[76px] left-4";
+                    break;
+                case 'bottom-right':
+                    webcam.className = "absolute w-[240px] aspect-video z-20 neon-border rounded transition-all duration-300 ease-out flex items-center justify-center bg-slate-950/90 bottom-[76px] right-4";
+                    break;
+            }
+            showToast("Webcam Relocated", `Frame kamera dipindahkan ke posisi: ${position.toUpperCase()}`);
+        }
+
+        // Simulated Gaming Twitch Chat messages feed
+        const chatPool = [
+            { user: "GamerPro_Indo", color: "#38bdf8", text: "GG WP! Gila refleksnya kenceng bgt!" },
+            { user: "Slayer_Queen", color: "#f472b6", text: "Main game apa selanjutnya min?" },
+            { user: "KopiHitam", color: "#fb923c", text: "Sultan_Live makasih donasinya bro!" },
+            { user: "Lord_Gamer", color: "#4ade80", text: "Clutch 1v4 paling gila sih ini" },
+            { user: "NoobMaster77", color: "#a78bfa", text: "Izin gabung Discord bang" },
+            { user: "LabaLaba", color: "#fb7185", text: "Glow overlaynya keren banget!" },
+            { user: "RajaTembak", color: "#2dd4bf", text: "Sensitivitas mouse berapa bang?" }
+        ];
+
+        function startChatSimulation() {
+            const chatContainer = document.getElementById('chat-messages');
+            
+            // Initial mock messages
+            for (let i = 0; i < 3; i++) {
+                addRandomMessage();
+            }
+
+            // Periodically inject new gamer comments
+            setInterval(() => {
+                addRandomMessage();
+            }, 3500);
+        }
+
+        function addRandomMessage(customSender = null, customText = null) {
+            const chatContainer = document.getElementById('chat-messages');
+            const msg = customSender ? { user: customSender, color: '#34d399', text: customText } : chatPool[Math.floor(Math.random() * chatPool.length)];
+            
+            const msgHtml = `
+                <div class="bg-slate-900/40 p-1.5 rounded border border-slate-800/50 leading-tight">
+                    <strong style="color: ${msg.color}">${msg.user}:</strong> 
+                    <span class="text-gray-300">${msg.text}</span>
+                </div>
+            `;
+            
+            chatContainer.insertAdjacentHTML('beforeend', msgHtml);
+            
+            // Auto scroll container
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Cap maximum comments visually
+            if (chatContainer.children.length > 25) {
+                chatContainer.removeChild(chatContainer.children[0]);
+            }
+        }
+
+        // Real-time text synchronize
+        function updateOverlayTexts() {
+            const username = document.getElementById('input-username').value;
+            const follower = document.getElementById('input-follower').value;
+            const donation = document.getElementById('input-donation').value;
+            const social = document.getElementById('input-social').value;
+
+            document.getElementById('display-username').textContent = username;
+            document.getElementById('display-follower').textContent = follower;
+            document.getElementById('display-donation').textContent = donation;
+            document.getElementById('display-social').textContent = `@${social}`;
+
+            // Sync Full screens overlays
+            document.getElementById('mode-display-twitch').textContent = username;
+            document.getElementById('mode-display-social').textContent = `@${social}`;
+        }
+
+        // Switch Stream Mode Layout Interface (In-Game vs Intermission vs Starting)
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // Toggle active buttons states
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.className = "mode-btn p-3 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-850 hover:bg-slate-800 text-gray-400 hover:text-white font-semibold font-gaming text-xs flex items-center justify-between transition";
+            });
+
+            const activeBtn = document.getElementById(`btn-mode-${mode}`);
+            activeBtn.className = "mode-btn active p-3 rounded-xl border border-pink-500/20 bg-pink-500/10 text-white font-semibold font-gaming text-xs flex items-center justify-between transition";
+
+            const simulatedGameBg = document.getElementById('simulated-gameplay');
+            const fullOverlay = document.getElementById('full-screen-overlay-mode');
+            const webcamFrame = document.getElementById('webcam-frame');
+            const chatWidget = document.getElementById('stream-chat');
+            const labelsBar = document.getElementById('labels-overlay-bar');
+
+            if (mode === 'ingame') {
+                simulatedGameBg.classList.remove('opacity-10');
+                fullOverlay.classList.add('hidden');
+                webcamFrame.classList.remove('hidden');
+                chatWidget.classList.remove('hidden');
+                labelsBar.classList.remove('hidden');
+                // respect toggle webcam user choice
+                toggleWebcam();
+            } 
+            else if (mode === 'chatting') {
+                simulatedGameBg.classList.add('opacity-10');
+                fullOverlay.classList.remove('hidden');
+                webcamFrame.classList.remove('hidden');
+                chatWidget.classList.remove('hidden');
+                labelsBar.classList.remove('hidden');
+                // Change full screen text details
+                document.getElementById('mode-badge-icon').className = "fa-solid fa-comments text-4xl neon-text";
+                document.getElementById('mode-heading').textContent = "JUST CHATTING";
+                document.getElementById('mode-subheading').textContent = "BERINTERAKSI LANGSUNG DENGAN CHAT & PENONTON";
+                document.getElementById('countdown-timer').classList.add('hidden');
+                document.getElementById('intermission-widgets').classList.remove('hidden');
+            } 
+            else if (mode === 'starting') {
+                simulatedGameBg.classList.add('opacity-10');
+                fullOverlay.classList.remove('hidden');
+                webcamFrame.classList.add('hidden');
+                chatWidget.classList.add('hidden');
+                labelsBar.classList.add('hidden');
+                // Change full screen text details
+                document.getElementById('mode-badge-icon').className = "fa-solid fa-hourglass-start text-4xl neon-text";
+                document.getElementById('mode-heading').textContent = "STREAM STARTING SOON";
+                document.getElementById('mode-subheading').textContent = "SIAPKAN CEMILAN KAMU, STREAM AKAN SEGERA DIMULAI!";
+                document.getElementById('countdown-timer').classList.remove('hidden');
+                document.getElementById('intermission-widgets').classList.add('hidden');
+            }
+
+            showToast("Tampilan Berubah", `Mengubah preview layar ke mode: ${mode.toUpperCase()}`);
+        }
+
+        // Live Countdown Clock Helper
+        function startCountdown() {
+            let minutes = 5;
+            let seconds = 0;
+            const timerEl = document.getElementById('countdown-timer');
+
+            clearInterval(countdownInterval);
+            countdownInterval = setInterval(() => {
+                if (seconds === 0) {
+                    if (minutes === 0) {
+                        minutes = 5; // Reset back loop
+                    } else {
+                        minutes--;
+                        seconds = 59;
+                    }
+                } else {
+                    seconds--;
+                }
+
+                const displayMin = String(minutes).padStart(2, '0');
+                const displaySec = String(seconds).padStart(2, '0');
+                timerEl.textContent = `${displayMin}:${displaySec}`;
+            }, 1000);
+        }
+
+        // OBS Custom Code generator helper
+        function updateOBSCodePreview(primary, secondary, borderWidth) {
+            const block = document.getElementById('obs-code-block');
+            block.textContent = `/* Salin kode CSS berikut ke Custom CSS OBS Browser Source: */
+
+body {
+    background-color: transparent !important;
+    margin: 0px;
+    padding: 0px;
+    overflow: hidden;
+}
+
+/* Frame Neon yang diproyeksikan */
+.neon-border {
+    border: ${borderWidth}px solid ${primary};
+    box-shadow: 0 0 10px rgba(0,0,0,0.8), 
+                inset 0 0 8px rgba(0,0,0,0.8),
+                0 0 15px ${primary};
+    animation: border-pulse 4s infinite alternate;
+}
+
+.neon-text {
+    color: #ffffff;
+    text-shadow: 0 0 5px #fff, 0 0 10px ${primary}, 0 0 20px ${primary};
+}
+
+@keyframes border-pulse {
+    0% {
+        border-color: ${primary};
+        box-shadow: 0 0 15px ${primary};
+    }
+    100% {
+        border-color: ${secondary};
+        box-shadow: 0 0 25px ${secondary};
+    }
+}`;
+        }
+
+        function openOBSModal() {
+            document.getElementById('obs-modal').classList.remove('hidden');
+        }
+
+        function closeOBSModal() {
+            document.getElementById('obs-modal').classList.add('hidden');
+        }
+
+        function copyToClipboard() {
+            const textToCopy = document.getElementById('obs-code-block').textContent;
+            
+            // Create fallback input element to bypass iframe secure clipboard limitations safely
+            const tempInput = document.createElement("textarea");
+            tempInput.value = textToCopy;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+
+            showToast("Copied!", "Kode Custom CSS berhasil disalin ke clipboard!");
+        }
+
+        
+        // Exponential Backoff Fetch Helper
+        async function fetchWithBackoff(url, options, retries = 3, delay = 1000) {
+            try {
+                const response = await fetch(url, options);
+                if (!response.ok) {
+                    if (response.status === 429 && retries > 0) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return fetchWithBackoff(url, options, retries - 1, delay * 2);
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response;
+            } catch (error) {
+                if (retries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return fetchWithBackoff(url, options, retries - 1, delay * 2);
+                }
+                throw error;
+            }
+        }
+
+        // Gemini AI Feature 1: Background Generator using Imagen 4.0
+        async function generateAIBackground() {
+            const promptInput = document.getElementById('ai-bg-prompt');
+            const promptValue = promptInput.value.trim();
+            const btn = document.getElementById('btn-generate-bg');
+            
+            if (!promptValue) {
+                showToast("Prompt Kosong", "Masukkan deskripsi background sebelum melakukan generate!", true);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> GENERATING ART...`;
+            showToast("Memulai AI Art", "Imagen sedang melukis latar belakang kustom kamu...");
+
+            const apiKey = ""; // Canvas Inject
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+
+            // Refined prompt to fit perfect 16:9 widescreen format
+            const refinedPrompt = `${promptValue}, esports streaming background design, 16:9 aspect ratio, gorgeous digital art, glowing ambient lights, sharp detailing, futuristic cyberpunk neon`;
+
+            const payload = {
+                instances: [{ prompt: refinedPrompt }],
+                parameters: {
+                    sampleCount: 1,
+                    aspectRatio: "16:9",
+                    outputMimeType: "image/jpeg"
+                }
+            };
+
+            try {
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                
+                if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+                    const generatedBase64 = result.predictions[0].bytesBase64Encoded;
+                    const imageUrl = `data:image/jpeg;base64,${generatedBase64}`;
+                    
+                    // Set simulated gameplay backdrop to the generated base64 image!
+                    const simulatedGameBg = document.getElementById('simulated-gameplay');
+                    simulatedGameBg.style.backgroundImage = `url('${imageUrl}')`;
+                    
+                    showToast("Generasi Sukses!", "Latar belakang AI barumu berhasil dipasang di Canvas!");
+                } else {
+                    throw new Error("Invalid structure or empty bytes in Imagen response.");
+                }
+
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal Membuat Gambar", "Batas kuota habis atau prompt ditolak filter konten.", true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-compass-drafting"></i> GENERATE BG (IMAGEN AI)`;
+            }
+        }
+
+        // Gemini AI Feature 2: Title, Command & Marquee Text Generator using gemini-3-flash-preview
+        async function boostStreamWithAI() {
+            const gameInput = document.getElementById('ai-input-game').value.trim();
+            const vibeInput = document.getElementById('ai-input-vibe').value;
+            const btn = document.getElementById('btn-boost-stream');
+
+            if (!gameInput) {
+                showToast("Masukkan Game", "Silakan isi kolom game terlebih dahulu!", true);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> BOOSTING STREAM...`;
+            showToast("Menghubungi Gemini", "Menganalisis meta gaming terbaru untuk meningkatkan CTR Anda...");
+
+            const systemPrompt = `You are a world-class Twitch stream optimizer.
+            Your output MUST be a valid JSON object strictly matching this schema:
+            {
+              "tickerText": "A long, highly catchy Indonesian marquee sentence welcoming viewers and including a cool call-to-action or status update, under 180 characters",
+              "recommendedTitle": "A highly punchy clickbait stream title for the specified game",
+              "colors": {
+                "primary": "Hex code (e.g. #ff00ff) representing the suggested primary neon color",
+                "secondary": "Hex code (e.g. #00ffff) representing the suggested secondary neon color"
+              },
+              "moderatorMessage": "A professional but entertaining automated streamer greeting for Twitch chat"
+            }
+            Do not include any explanation or markdown formatting in your response. Just return the raw JSON object.`;
+
+            const userQuery = `Optimize my stream for playing the game "${gameInput}" with a "${vibeInput}" mood. Give me recommended colors, an Indonesian news marquee text, a streamer greeting message, and a recommended Twitch title.`;
+
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                generationConfig: {
+                    responseMimeType: "application/json"
+                }
+            };
+
+            try {
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const candidateText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (candidateText) {
+                    const aiData = JSON.parse(candidateText.trim());
+
+                    // Apply Marquee News
+                    if (aiData.tickerText) {
+                        document.getElementById('marquee-text').textContent = aiData.tickerText;
+                    }
+
+                    // Apply Recommended Colors
+                    if (aiData.colors && aiData.colors.primary && aiData.colors.secondary) {
+                        document.getElementById('input-primary-color').value = aiData.colors.primary;
+                        document.getElementById('input-secondary-color').value = aiData.colors.secondary;
+                        updateColors();
+                    }
+
+                    // Inject AI automated Moderator welcome message directly to the live stream chat
+                    if (aiData.moderatorMessage) {
+                        addRandomMessage("GeminiBot_Mod", aiData.moderatorMessage);
+                    }
+
+                    // Alert streamer with recommended title
+                    if (aiData.recommendedTitle) {
+                        showToast("Rekomendasi Judul", `Judul Populer: "${aiData.recommendedTitle}" (Periksa Chat!)`);
+                        addRandomMessage("Rekomendasi_Judul", `💡 Coba ganti judul streammu menjadi: "${aiData.recommendedTitle}"`);
+                    }
+
+                    showToast("Stream Berhasil Di-Boost", "Layout, warna neon, ticker marquee, dan bot chat telah diperbarui oleh AI!");
+                } else {
+                    throw new Error("No text content returned from Gemini API.");
+                }
+
+            } catch (err) {
+                console.error(err);
+                showToast("Koneksi Gagal", "Gagal memanggil model Gemini 3 Flash. Menggunakan cadangan lokal.", true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> REKOMENDASIKAN AI SLOGAN`;
+            }
+        }
+
+        // Gemini AI Feature 3: Live Co-Host AI Streamer Chatbot Assistant using gemini-3-flash-preview
+        async function askAIAssistant() {
+            const queryInput = document.getElementById('ai-assistant-query');
+            const queryText = queryInput.value.trim();
+            const btn = document.getElementById('btn-ask-assistant');
+            const responseBox = document.getElementById('ai-assistant-response');
+
+            if (!queryText) {
+                showToast("Pertanyaan Kosong", "Tuliskan sesuatu untuk ditanyakan kepada Co-Host AI!", true);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i>`;
+            responseBox.classList.remove('hidden');
+            responseBox.textContent = "AI Co-Host sedang menyusun strategi...";
+
+            const systemPrompt = "You are an expert Indonesian live streamer co-host and optimization coach. Provide an extremely concise, highly creative response under 250 characters.";
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: queryText }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                }
+            };
+
+            try {
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const aiText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (aiText) {
+                    responseBox.textContent = aiText.trim();
+                    // Also inject the tip as a live message from our smart bot!
+                    addRandomMessage("CoHost_Gemini", aiText.trim());
+                } else {
+                    throw new Error("No reply text generated.");
+                }
+
+            } catch (err) {
+                console.error(err);
+                responseBox.textContent = "Gagal menghubungi asisten AI Anda. Silakan coba sesaat lagi.";
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i>`;
+            }
+        }
+
+        // Reset Settings to default values
+        function resetToDefaults() {
+            applyTheme('cyberpunk');
+            document.getElementById('input-username').value = "PRO_GAMER";
+            document.getElementById('input-follower').value = "GamerKeren_99";
+            document.getElementById('input-donation').value = "Sultan_Live Rp 50.000";
+            document.getElementById('input-social').value = "pro_gamer_stream";
+            document.getElementById('marquee-text').textContent = "🔥 Selamat datang di Live Stream kami! | Jangan lupa follow dan nyalakan lonceng notifikasi! | Dukung kami via Donation Bar di bawah ini 🔥";
+            
+            // Reset AI Background simulator back to standard
+            const simulatedGameBg = document.getElementById('simulated-gameplay');
+            simulatedGameBg.style.backgroundImage = "url('https://placehold.co/1280x720/1e293b/0f172a?text=🎮+Simulasi+Gameplay+Game')";
+            
+            updateOverlayTexts();
+            setWebcamPosition('top-right');
+            switchMode('ingame');
+            showToast("Reset Success", "Seluruh setelan telah dikembalikan ke awal.");
+        }
+
+        // Render 16:9 box element to single PNG image
+        function downloadOverlay() {
+            const container = document.getElementById('stream-preview-container');
+            
+            // Temporary hide Simulated background so OBS streams output transparently perfectly
+            const simulatedGameBg = document.getElementById('simulated-gameplay');
+            const originalBg = simulatedGameBg.style.backgroundImage;
+            
+            // Make gameplay invisible for clean transparent asset export
+            simulatedGameBg.style.backgroundImage = 'none';
+
+            showToast("Rendering...", "Mempersiapkan render asset overlay HD, mohon tunggu...");
+
+            html2canvas(container, {
+                backgroundColor: null, // Allow transparency!
+                scale: 2, // Double quality for crystal clear 1080p outputs
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                // Restore simulation background
+                simulatedGameBg.style.backgroundImage = originalBg;
+
+                // Create download link element
+                const link = document.createElement('a');
+                link.download = `overlay_twitch_stream_${currentMode}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+
+                showToast("Download Berhasil!", "Overlay transparan resolusi tinggi siap diunggah ke OBS Studio/Canva!");
+            }).catch(err => {
+                simulatedGameBg.style.backgroundImage = originalBg;
+                showToast("Render Error", "Gagal melakukan render gambar.", true);
+                console.error(err);
+            });
+        }
+    </script>
+</body>
+</html>
